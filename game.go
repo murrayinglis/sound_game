@@ -136,8 +136,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%.0f bpm", bpm()), 4, 4)
 }
 
-// drawGrid marks the block boundaries — without them you can't tell where a
-// note will start — and shades the block currently sounding.
+// drawGrid marks the block boundaries, without which you can't tell where a
+// note will start, and shades the block currently sounding.
 func (g *Game) drawGrid(screen *ebiten.Image, step int) {
 	w := float32(W) / float32(cfg.Steps)
 	vector.FillRect(screen, float32(step)*w, 0, w, float32(H), color.RGBA{255, 255, 255, 14}, false)

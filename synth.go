@@ -7,7 +7,7 @@ const (
 	maxVoices  = 8
 
 	// glide and ampRate are one-pole smoothing coefficients per sample. glide is
-	// how long a note takes to arrive at the next one's pitch — the audible slide
+	// how long a note takes to arrive at the next one's pitch, the audible slide
 	// between steps; ampRate is how softly notes come in and out.
 	glide   = 0.0015
 	ampRate = 0.0008
@@ -15,7 +15,7 @@ const (
 	// Voice mix level, set so a full 8 voices soft-clip rather than blare.
 	drive = 0.35
 
-	// A damped feedback delay — cheap reverb, and the biggest single difference
+	// A damped feedback delay: cheap reverb, and the biggest single difference
 	// between "a tone" and "an instrument in a room". feedback is how long it
 	// rings, wet how much you hear it, damp how fast repeats lose their top end.
 	delayLen = sampleRate * 28 / 100
@@ -102,7 +102,7 @@ func (s *synth) Read(buf []byte) (int, error) {
 				continue
 			}
 			// ponytail: phase is in turns, not radians, so it indexes the table
-			// directly. No band-limiting — safe for the waveforms shipped here,
+			// directly. No band-limiting, which is safe for the waveforms shipped here,
 			// but a brighter table will alias near the top of the range.
 			p.phase += p.freq / sampleRate
 			if p.phase >= 1 {

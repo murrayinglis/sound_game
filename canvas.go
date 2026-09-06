@@ -17,7 +17,7 @@ var (
 	pix []byte // RGBA; this is the canvas AND the score
 
 	// palette[i] is the colour instrument i draws in, parsed from the config.
-	// The canvas stores no instrument index of its own — the colour of a pixel
+	// The canvas stores no instrument index of its own: the colour of a pixel
 	// is the index, which is why the config forbids two sharing one.
 	palette [][3]byte
 )

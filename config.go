@@ -18,8 +18,8 @@ type Instrument struct {
 }
 
 // Config is read from config.json at startup. Fields absent from the file keep
-// the defaults below, and a missing file is not an error — that's the normal
-// case for the wasm build, which has no filesystem to read.
+// the defaults below. A missing file is not an error: that's the normal case
+// for the wasm build, which has no filesystem to read.
 type Config struct {
 	// Beats per minute. One beat is one block of the canvas.
 	BPM float64 `json:"bpm" validate:"gt=0,lte=300"`
@@ -100,7 +100,7 @@ func setBPM(b float64) {
 
 func loadConfig(path string) {
 	// Unmarshalling over the populated struct means the file only has to carry
-	// what it wants to change. A missing file is fine — that's the wasm build,
+	// what it wants to change. A missing file is fine: that's the wasm build,
 	// which has no filesystem, running on the defaults above.
 	if b, err := os.ReadFile(path); err != nil {
 		log.Printf("config: using defaults (%v)", err)
