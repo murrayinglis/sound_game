@@ -94,10 +94,15 @@
           border-top: 2px dashed var(--line); padding-top: 14px; }
   .hint kbd { background: #164023; border: 2px solid; border-image: var(--frame);
               padding: 2px 5px; font: inherit; font-size: 9px; color: var(--accent); }
+
+  /* pointer-events off so the worm never eats a click meant for the canvas */
+  #worm { position: fixed; left: 8px; bottom: 8px; z-index: 10; width: 150px;
+          image-rendering: pixelated; pointer-events: none; }
 </style>
 </head>
 <body>
 <div id="veil">click to start</div>
+<img id="worm" src="worm.gif" alt="">
 
 <aside id="ui">
   <h1>sound game</h1>
