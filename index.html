@@ -119,7 +119,14 @@ WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
 const wait = setInterval(() => {
   if (window.soundgame && document.querySelector("canvas")) {
     clearInterval(wait);
-    start(window.soundgame);
+    // A failure here is almost always a cached main.wasm paired with a newer
+    // page. Say so on screen rather than leaving a panel that never appears.
+    try {
+      start(window.soundgame);
+    } catch (e) {
+      document.getElementById("veil").textContent = "stale build, try a hard refresh (" + e.message + ")";
+      document.getElementById("veil").classList.remove("gone");
+    }
   }
 }, 40);
 

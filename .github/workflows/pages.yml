@@ -24,11 +24,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Build wasm
-        run: |
-          mkdir -p dist
-          GOOS=js GOARCH=wasm go build -o dist/main.wasm .
-          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" dist/
-          cp index.html dist/
+        run: make build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
