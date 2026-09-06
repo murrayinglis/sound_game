@@ -6,11 +6,14 @@ Y is pitch, X is time.
 ## Run
 
 ```bash
-go run .
+make run
 ```
 
+Then open http://localhost:8000. The controls live in the page, so the browser
+is the way to run it. `make native` still works but has only the keyboard.
+
 - Left mouse draws
-- `1`–`8` or the strip along the bottom picks an instrument
+- `1`-`8` or the panel picks an instrument
 - `G` toggles the block grid
 - `-` / `=` change the tempo, applied when the playhead next wraps
 - `C` clears
@@ -23,11 +26,9 @@ Copy `config.example.json` to `config.json` and edit `bpm`, `steps`, `root`,
 `scale` is a name in `major`, `minor`, `harmonic_minor`, `dorian`,
 `major_pentatonic`, `minor_pentatonic`, `blues`, `whole_tone`, `chromatic`.
 
-## Browser
-
-```bash
-GOOS=js GOARCH=wasm go build -o main.wasm . && cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" . && python3 -m http.server
-```
+There is no config file in the browser, since wasm has no filesystem to read
+one from. The deployed build runs on the defaults in `config.go`, with the
+starting tempo and grid set in `defaults_js.go`.
 
 
 ---

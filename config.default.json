@@ -1,6 +1,7 @@
 {
   "bpm": 150,
   "steps": 16,
+  "grid": false,
   "root": 110,
   "octaves": 3,
   "scale": "minor_pentatonic",

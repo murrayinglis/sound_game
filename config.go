@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"log"
 	"math"
@@ -17,15 +18,18 @@ type Instrument struct {
 	Color string `json:"color" validate:"required,hexcolor,len=7"`
 }
 
-// Config is read from config.json at startup. Fields absent from the file keep
-// the defaults below. A missing file is not an error: that's the normal case
-// for the wasm build, which has no filesystem to read.
+// Config comes from the embedded config.default.json, which a local config.json
+// may then override field by field. There is no third copy of the defaults in
+// Go: the committed JSON is the one source, and it is what the deployed browser
+// build runs on, since wasm has no filesystem to read an override from.
 type Config struct {
 	// Beats per minute. One beat is one block of the canvas.
 	BPM float64 `json:"bpm" validate:"gt=0,lte=300"`
 	// How many blocks the canvas is divided into left to right. Everything drawn
 	// inside a block sounds as one note, held for the whole beat.
 	Steps int `json:"steps" validate:"gte=1,lte=64"`
+	// Whether the block grid starts visible.
+	Grid bool `json:"grid"`
 	// Hz at the bottom of the canvas.
 	Root float64 `json:"root" validate:"gt=0"`
 	// How far above the root the top of the canvas reaches.
@@ -38,19 +42,10 @@ type Config struct {
 	Instruments []Instrument `json:"instruments" validate:"required,min=1,max=8,unique=Color,dive"`
 }
 
-var cfg = Config{
-	BPM:     100,
-	Steps:   16,
-	Root:    110, // A2
-	Octaves: 3,
-	Scale:   "minor_pentatonic",
-	Instruments: []Instrument{
-		{"AKWF_clarinett_0001.wav", "#7ec8ff"},
-		{"AKWF_epiano_0001.wav", "#ffd166"},
-		{"AKWF_flute_0004.wav", "#8ce99a"},
-		{"AKWF_hvoice_0001.wav", "#ff8fab"},
-	},
-}
+//go:embed config.default.json
+var defaultConfig []byte
+
+var cfg Config
 
 var validate = newValidator()
 
@@ -99,18 +94,25 @@ func setBPM(b float64) {
 }
 
 func loadConfig(path string) {
-	// Unmarshalling over the populated struct means the file only has to carry
-	// what it wants to change. A missing file is fine: that's the wasm build,
-	// which has no filesystem, running on the defaults above.
+	if err := json.Unmarshal(defaultConfig, &cfg); err != nil {
+		log.Fatalf("config: the embedded config.default.json is broken: %v", err)
+	}
+	// Unmarshalling over the already populated struct means an override file
+	// only has to carry what it wants to change. Not finding one is fine: that
+	// is the wasm build, which has no filesystem, running on the embedded copy.
 	if b, err := os.ReadFile(path); err != nil {
-		log.Printf("config: using defaults (%v)", err)
+		log.Printf("config: no override (%v)", err)
 	} else if err := json.Unmarshal(b, &cfg); err != nil {
 		log.Fatalf("config: %s is not valid JSON: %v", path, err)
-	} else if err := validate.Struct(cfg); err != nil {
+	}
+	// Validated either way, so a bad committed default fails here rather than
+	// only once it is deployed.
+	if err := validate.Struct(cfg); err != nil {
 		log.Fatalf("config: %v\nscale must be one of: %v", err, scaleNames())
 	}
 
 	notes = scales[cfg.Scale]
+	showGrid = cfg.Grid
 	sweepSec = float64(cfg.Steps) * 60 / cfg.BPM
 	log.Printf("config: %.0f bpm, %d steps (%.1fs a pass), %s from %.0fHz over %d octaves",
 		cfg.BPM, cfg.Steps, sweepSec, cfg.Scale, cfg.Root, cfg.Octaves)
