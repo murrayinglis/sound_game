@@ -81,6 +81,10 @@
   </section>
 
   <div class="row">
+    <button class="act" id="pause">Pause</button>
+  </div>
+
+  <div class="row">
     <label class="tog"><input id="grid" type="checkbox"> Grid</label>
     <button class="act" id="clear">Clear</button>
   </div>
@@ -88,7 +92,8 @@
   <p class="hint">
     Drag to draw. Height is pitch, width is time.<br>
     <kbd>1</kbd>-<kbd>8</kbd> instrument<br>
-    <kbd>G</kbd> grid &nbsp; <kbd>-</kbd> <kbd>=</kbd> tempo &nbsp; <kbd>C</kbd> clear
+    <kbd>space</kbd> pause &nbsp; <kbd>G</kbd> grid<br>
+    <kbd>-</kbd> <kbd>=</kbd> tempo &nbsp; <kbd>C</kbd> clear
   </p>
 </aside>
 
@@ -114,6 +119,7 @@ function start(api) {
   const bpm = document.getElementById("bpm");
   const bpmVal = document.getElementById("bpmVal");
   const grid = document.getElementById("grid");
+  const pause = document.getElementById("pause");
 
   // The panel sits over the canvas and Ebiten listens on the document, so
   // without this a click on a button also paints underneath it.
@@ -129,14 +135,16 @@ function start(api) {
     const b = document.createElement("button");
     b.className = "inst";
     b.innerHTML = `<span class="dot" style="background:${inst.color}"></span>${inst.name}<span class="key">${i + 1}</span>`;
-    b.onclick = () => { api.setInstrument(i); sync(); };
+    b.onclick = () => { api.setInstrument(i); b.blur(); sync(); };
     document.getElementById("insts").append(b);
     return b;
   });
 
   bpm.oninput = () => { api.setBPM(+bpm.value); bpmVal.textContent = bpm.value; };
   grid.onchange = () => api.setGrid(grid.checked);
-  document.getElementById("clear").onclick = () => api.clear();
+  // blur so the button does not swallow the next space keypress as a click
+  pause.onclick = () => { api.setPaused(pause.dataset.on !== "1"); pause.blur(); sync(); };
+  document.getElementById("clear").onclick = e => { api.clear(); e.target.blur(); };
 
   // Polled rather than pushed from Go: the keyboard shortcuts still work, and
   // this is the cheapest way to keep the panel showing what they did.
@@ -145,6 +153,8 @@ function start(api) {
     buttons.forEach((b, i) => b.setAttribute("aria-pressed", i === s.cur));
     if (document.activeElement !== bpm) { bpm.value = s.bpm; bpmVal.textContent = Math.round(s.bpm); }
     grid.checked = s.grid;
+    pause.dataset.on = s.paused ? "1" : "0";
+    pause.textContent = s.paused ? "Resume" : "Pause";
   }
   sync();
   setInterval(sync, 150);

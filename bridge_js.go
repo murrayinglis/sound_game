@@ -30,8 +30,9 @@ func bridge() {
 			mu.Lock()
 			defer mu.Unlock()
 			return marshal(map[string]any{
-				"cur":  curInst,
-				"grid": showGrid,
+				"cur":    curInst,
+				"grid":   showGrid,
+				"paused": paused,
 				// Inlined rather than calling bpm(), which would deadlock on mu.
 				"bpm": float64(cfg.Steps) * 60 / sweepSec,
 			})
@@ -39,6 +40,7 @@ func bridge() {
 		"setInstrument": fn(func(a []js.Value) any { setInstrument(a[0].Int()); return nil }),
 		"setBPM":        fn(func(a []js.Value) any { setBPM(a[0].Float()); return nil }),
 		"setGrid":       fn(func(a []js.Value) any { setGrid(a[0].Bool()); return nil }),
+		"setPaused":     fn(func(a []js.Value) any { setPaused(a[0].Bool()); return nil }),
 		"clear": fn(func([]js.Value) any {
 			mu.Lock()
 			clearCanvas()

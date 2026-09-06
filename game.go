@@ -20,6 +20,7 @@ const scrim = 40
 var (
 	curInst  int
 	showGrid bool // set from the config at startup
+	paused   bool
 )
 
 func setInstrument(i int) {
@@ -34,6 +35,12 @@ func setInstrument(i int) {
 func setGrid(on bool) {
 	mu.Lock()
 	showGrid = on
+	mu.Unlock()
+}
+
+func setPaused(on bool) {
+	mu.Lock()
+	paused = on
 	mu.Unlock()
 }
 
@@ -54,6 +61,7 @@ type Game struct {
 	// adopt a new tempo at the same point in the music despite the buffer lag.
 	sweep, startSec float64
 	start           time.Time // wall clock, for the background animation
+	wasPaused       bool
 }
 
 // held reports a press and then repeats while the key stays down, so the tempo
@@ -73,6 +81,27 @@ func (g *Game) Update() error {
 		mu.Lock()
 		showGrid = !showGrid
 		mu.Unlock()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		mu.Lock()
+		paused = !paused
+		mu.Unlock()
+	}
+
+	// Pausing the player is what actually stops things: it holds Position(), so
+	// the playhead freezes in step with the synth rather than drifting on while
+	// silence plays. Applied here so the page's button never touches the player
+	// from the JS goroutine.
+	mu.Lock()
+	p := paused
+	mu.Unlock()
+	if p != g.wasPaused {
+		if p {
+			g.player.Pause()
+		} else {
+			g.player.Play()
+		}
+		g.wasPaused = p
 	}
 	if held(ebiten.KeyMinus) {
 		setBPM(bpm() - 5)

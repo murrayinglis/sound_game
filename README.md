@@ -14,6 +14,7 @@ is the way to run it. `make native` still works but has only the keyboard.
 
 - Left mouse draws
 - `1`-`8` or the panel picks an instrument
+- `Space` pauses
 - `G` toggles the block grid
 - `-` / `=` change the tempo, applied when the playhead next wraps
 - `C` clears
