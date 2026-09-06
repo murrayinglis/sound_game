@@ -7,15 +7,14 @@ import (
 	"sync"
 )
 
-const (
-	W, H  = 800, 400
-	brush = 1 // pencil radius in pixels
-)
+const brush = 1 // pencil radius in pixels
+
+// Canvas size, taken from the background gif at startup.
+var W, H int
 
 var (
 	mu  sync.Mutex
-	pix = make([]byte, W*H*4) // RGBA; this is the canvas AND the score
-	bg  = [3]byte{18, 18, 26}
+	pix []byte // RGBA; this is the canvas AND the score
 
 	// palette[i] is the colour instrument i draws in, parsed from the config.
 	// The canvas stores no instrument index of its own — the colour of a pixel
@@ -23,32 +22,33 @@ var (
 	palette [][3]byte
 )
 
+// The canvas is transparent where nothing is drawn so the background shows
+// through, which also makes alpha the test for "is there a stroke here".
+func initCanvas() {
+	pix = make([]byte, W*H*4)
+}
+
 func loadPalette() {
 	for _, in := range cfg.Instruments {
 		var c [3]byte
 		if _, err := fmt.Sscanf(in.Color, "#%02x%02x%02x", &c[0], &c[1], &c[2]); err != nil {
 			log.Fatalf("config: colour %q for %s: %v", in.Color, in.File, err)
 		}
-		if c == bg {
-			log.Fatalf("config: colour %q for %s is the background colour", in.Color, in.File)
-		}
 		palette = append(palette, c)
 	}
 }
 
 func clearCanvas() {
-	for i := 0; i < len(pix); i += 4 {
-		pix[i], pix[i+1], pix[i+2], pix[i+3] = bg[0], bg[1], bg[2], 255
-	}
+	clear(pix)
 }
 
 // instAt returns the instrument drawn at a pixel, or -1 for bare canvas.
 func instAt(x, y int) int {
 	i := (y*W + x) * 4
-	c := [3]byte{pix[i], pix[i+1], pix[i+2]}
-	if c == bg {
+	if pix[i+3] == 0 {
 		return -1
 	}
+	c := [3]byte{pix[i], pix[i+1], pix[i+2]}
 	for k, p := range palette {
 		if c == p {
 			return k
@@ -68,7 +68,7 @@ func paint(x, y int, c [3]byte) {
 				continue
 			}
 			i := (py*W + px) * 4
-			pix[i], pix[i+1], pix[i+2] = c[0], c[1], c[2]
+			pix[i], pix[i+1], pix[i+2], pix[i+3] = c[0], c[1], c[2], 255
 		}
 	}
 }

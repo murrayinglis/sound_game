@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"strings"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
@@ -15,6 +16,10 @@ import (
 // The picker lives in its own strip below the canvas rather than floating over
 // it, so there is no region where a click might mean either "draw" or "choose".
 const pickerH = 30
+
+// How far the background is dimmed so strokes stay readable over it. 0 shows the
+// gif untouched and makes the paler instruments hard to see; 255 hides it.
+const scrim = 40
 
 // Listed rather than Key1+i: the Key constants are not promised to be contiguous.
 var pickKeys = []ebiten.Key{
@@ -34,6 +39,7 @@ type Game struct {
 	// walks its own pass boundary forward exactly as the synth does, so both
 	// adopt a new tempo at the same point in the music despite the buffer lag.
 	sweep, startSec float64
+	start           time.Time // wall clock, for the background animation
 }
 
 // held reports a press and then repeats while the key stays down, so the tempo
@@ -98,25 +104,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.startSec += g.sweep
 		g.sweep = tempo()
 	}
-	ph := min((t-g.startSec)/g.sweep*W, W-1)
+	ph := min((t-g.startSec)/g.sweep*float64(W), float64(W-1))
 
-	step := min(int(ph*float64(cfg.Steps)/W), cfg.Steps-1)
+	step := min(int(ph*float64(cfg.Steps)/float64(W)), cfg.Steps-1)
 
 	var runs [maxVoices]hit
 	mu.Lock()
 	g.canvas.WritePixels(pix)
-	// The same column the synth sampled for this block, so the dots sit on the
-	// pixels you can actually hear rather than wherever the playhead has got to.
-	n := findRuns(stepCol(step), &runs)
+	// Sampled at the live column, not the block's, so the dots ride along the
+	// stroke as it's drawn. They track where the playhead is touching the line;
+	// the pitch you hear still comes from the block. On a sloped stroke the two
+	// deliberately disagree, and the dot is showing the drawing, not the note.
+	n := findRuns(int(ph), &runs)
 	mu.Unlock()
 
+	screen.DrawImage(bgFrame(time.Since(g.start)), nil)
+	vector.FillRect(screen, 0, 0, float32(W), float32(H), color.RGBA{0, 0, 0, scrim}, false)
 	screen.DrawImage(g.canvas, nil)
 	if g.grid {
 		g.drawGrid(screen, step)
 	}
 
-	vector.StrokeLine(screen, float32(ph), 0, float32(ph), H, 1, color.RGBA{255, 90, 90, 255}, false)
-	x := float32(stepCol(step))
+	x := float32(ph)
+	vector.StrokeLine(screen, x, 0, x, float32(H), 1, color.RGBA{255, 90, 90, 255}, false)
 	for i := range n {
 		y := float32(runs[i].y)
 		vector.FillCircle(screen, x, y, 5, color.RGBA{255, 255, 255, 255}, true)
@@ -130,10 +140,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 // note will start — and shades the block currently sounding.
 func (g *Game) drawGrid(screen *ebiten.Image, step int) {
 	w := float32(W) / float32(cfg.Steps)
-	vector.FillRect(screen, float32(step)*w, 0, w, H, color.RGBA{255, 255, 255, 14}, false)
+	vector.FillRect(screen, float32(step)*w, 0, w, float32(H), color.RGBA{255, 255, 255, 14}, false)
 	for i := 1; i < cfg.Steps; i++ {
 		x := float32(i) * w
-		vector.StrokeLine(screen, x, 0, x, H, 1, color.RGBA{255, 255, 255, 26}, false)
+		vector.StrokeLine(screen, x, 0, x, float32(H), 1, color.RGBA{255, 255, 255, 26}, false)
 	}
 }
 
@@ -141,10 +151,10 @@ func (g *Game) drawPicker(screen *ebiten.Image) {
 	w := float32(W) / float32(len(cfg.Instruments))
 	for i, in := range cfg.Instruments {
 		x := float32(i) * w
-		vector.FillRect(screen, x, H, w, pickerH, rgb(palette[i]), false)
+		vector.FillRect(screen, x, float32(H), w, pickerH, rgb(palette[i]), false)
 		if i == g.cur {
 			// Selected: a white bar along the top edge of the swatch.
-			vector.FillRect(screen, x, H, w, 4, color.RGBA{255, 255, 255, 255}, false)
+			vector.FillRect(screen, x, float32(H), w, 4, color.RGBA{255, 255, 255, 255}, false)
 		}
 		ebitenutil.DebugPrintAt(screen, shortName(in.File), int(x)+8, H+12)
 	}

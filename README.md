@@ -23,9 +23,6 @@ Copy `config.example.json` to `config.json` and edit `bpm`, `steps`, `root`,
 `scale` is a name — `major`, `minor`, `harmonic_minor`, `dorian`,
 `major_pentatonic`, `minor_pentatonic`, `blues`, `whole_tone`, `chromatic`.
 
-Two instruments can't share a colour; the colour of a stroke is how the synth
-knows what to play it with.
-
 ## Browser
 
 ```bash

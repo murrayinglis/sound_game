@@ -60,7 +60,7 @@ func findRuns(col int, out *[maxVoices]hit) int {
 // stepCol is the column a step takes its notes from: the middle of the block,
 // so a stroke covering only part of it still counts.
 func stepCol(step int) int {
-	return min(int((float64(step)+0.5)*W/float64(cfg.Steps)), W-1)
+	return min(int((float64(step)+0.5)*float64(W)/float64(cfg.Steps)), W-1)
 }
 
 type voice struct {
@@ -83,12 +83,12 @@ type synth struct {
 // and sound locked together, which a 60fps Update would slowly drift away from.
 func (s *synth) Read(buf []byte) (int, error) {
 	n := len(buf) / 4 * 4
-	rate := W / (s.sweep * sampleRate)
+	rate := float64(W) / (s.sweep * sampleRate)
 
 	for i := 0; i < n; i += 4 {
 		// Notes change only on block boundaries, never mid-block. That is what
 		// stops a drawn slope from sliding continuously.
-		if st := int(s.pos * float64(cfg.Steps) / W); st != s.step {
+		if st := int(s.pos * float64(cfg.Steps) / float64(W)); st != s.step {
 			s.step = st
 			s.control()
 		}
@@ -129,10 +129,10 @@ func (s *synth) Read(buf []byte) (int, error) {
 		buf[i+2], buf[i+3] = byte(v), byte(v>>8)
 
 		s.pos += rate
-		if s.pos >= W {
-			s.pos -= W
+		if s.pos >= float64(W) {
+			s.pos -= float64(W)
 			s.sweep = tempo() // a tempo change waits for the wrap
-			rate = W / (s.sweep * sampleRate)
+			rate = float64(W) / (s.sweep * sampleRate)
 		}
 	}
 	return n, nil

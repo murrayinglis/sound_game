@@ -30,7 +30,7 @@ var notes []int
 
 // degreeAt converts a row to a fractional scale degree, 0 at the bottom.
 func degreeAt(y float64) float64 {
-	return (1 - y/H) * float64(len(notes)*cfg.Octaves)
+	return (1 - y/float64(H)) * float64(len(notes)*cfg.Octaves)
 }
 
 // freqOfDegree takes fractional degrees so a slide between two notes is smooth.

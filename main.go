@@ -4,6 +4,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
@@ -11,9 +12,10 @@ import (
 
 func main() {
 	loadConfig("config.json")
+	loadBackground() // sets W and H, so it has to run before the canvas exists
+	initCanvas()
 	loadPalette()
 	loadTables()
-	clearCanvas()
 
 	p, err := audio.NewContext(sampleRate).NewPlayer(&synth{sweep: sweepSec})
 	if err != nil {
@@ -23,7 +25,7 @@ func main() {
 
 	ebiten.SetWindowSize(W, H+pickerH)
 	ebiten.SetWindowTitle("sound game: draw, G grid, -/= tempo, C clear")
-	g := &Game{canvas: ebiten.NewImage(W, H), player: p, grid: true, sweep: sweepSec}
+	g := &Game{canvas: ebiten.NewImage(W, H), player: p, grid: true, sweep: sweepSec, start: time.Now()}
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
