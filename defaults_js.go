@@ -7,5 +7,5 @@ package main
 // back to these defaults.
 func init() {
 	cfg.BPM = 150
-	gridDefault = false
+	showGrid = false
 }

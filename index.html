@@ -5,26 +5,151 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sound game</title>
 <style>
-  body { margin: 0; height: 100vh; display: flex; flex-direction: column;
-         align-items: center; justify-content: center; gap: 12px;
-         background: #0f1117; color: #8b93a7;
-         font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
-  #hint { transition: opacity .4s; }
-  body.started #hint { opacity: 0; }
+  :root {
+    --bg: #0b0e14;
+    --panel: rgba(20, 25, 38, .88);
+    --line: #2b3346;
+    --text: #e6e9f0;
+    --dim: #79839c;
+    --accent: #7ec8ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; background: var(--bg); color: var(--text);
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  /* Ebiten owns the canvas and sizes it to the window, scaling the world to fit.
+     Nothing here reparents or resizes it: doing either throws off where clicks
+     land, because Ebiten maps the pointer using the size it thinks it set. */
+  canvas { display: block; cursor: crosshair; touch-action: none; }
+
+  #veil { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+          background: rgba(11,14,20,.72); letter-spacing: .02em;
+          transition: opacity .35s; cursor: crosshair; }
+  #veil.gone { opacity: 0; pointer-events: none; }
+
+  aside { position: fixed; top: 20px; right: 20px; z-index: 10; width: 228px;
+          background: var(--panel); backdrop-filter: blur(14px);
+          border: 1px solid var(--line); border-radius: 12px; padding: 18px;
+          display: none; flex-direction: column; gap: 20px;
+          box-shadow: 0 16px 44px rgba(0,0,0,.5); }
+  aside.ready { display: flex; }
+  h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .04em; }
+  h2 { margin: 0 0 9px; font-size: 11px; font-weight: 600; letter-spacing: .09em;
+       text-transform: uppercase; color: var(--dim); display: flex; justify-content: space-between; }
+  h2 span { color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+  #insts { display: flex; flex-direction: column; gap: 4px; }
+  .inst { display: flex; align-items: center; gap: 10px; width: 100%;
+          padding: 8px 10px; border: 1px solid transparent; border-radius: 8px;
+          background: none; color: var(--dim); font: inherit; text-align: left; cursor: pointer; }
+  .inst:hover { background: #1b2233; color: var(--text); }
+  .inst[aria-pressed="true"] { background: #1b2233; border-color: var(--line); color: var(--text); }
+  .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .key { margin-left: auto; font-size: 11px; color: var(--dim); }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+
+  .row { display: flex; gap: 8px; }
+  button.act, label.tog { flex: 1; display: flex; align-items: center; justify-content: center;
+          gap: 7px; padding: 9px; border: 1px solid var(--line); border-radius: 8px;
+          background: #1a2030; color: var(--text); font: inherit; cursor: pointer; }
+  button.act:hover, label.tog:hover { background: #222a3d; }
+  label.tog input { accent-color: var(--accent); margin: 0; }
+
+  .hint { margin: 0; font-size: 11px; line-height: 1.8; color: var(--dim);
+          border-top: 1px solid var(--line); padding-top: 14px; }
+  .hint kbd { background: #1a2030; border: 1px solid var(--line); border-radius: 4px;
+              padding: 1px 5px; font: inherit; font-size: 10px; }
 </style>
 </head>
 <body>
-<div id="hint">click to start audio &middot; drag to draw &middot; 1-4 instrument &middot; G grid &middot; -/= tempo &middot; C clear</div>
+<div id="veil">click to start</div>
+
+<aside id="ui">
+  <h1>sound game</h1>
+
+  <section>
+    <h2>Instrument</h2>
+    <div id="insts"></div>
+  </section>
+
+  <section>
+    <h2>Tempo <span id="bpmVal">-</span></h2>
+    <input id="bpm" type="range" min="20" max="300" step="5">
+  </section>
+
+  <div class="row">
+    <label class="tog"><input id="grid" type="checkbox"> Grid</label>
+    <button class="act" id="clear">Clear</button>
+  </div>
+
+  <p class="hint">
+    Drag to draw. Height is pitch, width is time.<br>
+    <kbd>1</kbd>-<kbd>8</kbd> instrument<br>
+    <kbd>G</kbd> grid &nbsp; <kbd>-</kbd> <kbd>=</kbd> tempo &nbsp; <kbd>C</kbd> clear
+  </p>
+</aside>
+
 <script src="wasm_exec.js"></script>
 <script>
-  // Browsers keep audio suspended until the user interacts; Ebiten resumes it on
-  // the first input, so the hint just fades once that has happened.
-  addEventListener("pointerdown", () => document.body.classList.add("started"), { once: true });
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
+  .then(r => go.run(r.instance))
+  .catch(e => document.getElementById("veil").textContent = "failed to load: " + e);
 
-  const go = new Go();
-  WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
-    .then(r => go.run(r.instance))
-    .catch(e => document.getElementById("hint").textContent = "failed to load: " + e);
+// The Go side registers window.soundgame before Ebiten starts, so the canvas
+// does not exist yet at that point. Waiting for both avoids a ready callback.
+const wait = setInterval(() => {
+  if (window.soundgame && document.querySelector("canvas")) {
+    clearInterval(wait);
+    start(window.soundgame);
+  }
+}, 40);
+
+function start(api) {
+  const veil = document.getElementById("veil");
+  const ui = document.getElementById("ui");
+  const bpm = document.getElementById("bpm");
+  const bpmVal = document.getElementById("bpmVal");
+  const grid = document.getElementById("grid");
+
+  // The panel sits over the canvas and Ebiten listens on the document, so
+  // without this a click on a button also paints underneath it.
+  for (const t of ["pointerdown", "pointerup", "mousedown", "mouseup"]) {
+    ui.addEventListener(t, e => e.stopPropagation());
+  }
+
+  // Audio stays suspended until the user interacts; Ebiten resumes it on the
+  // first input, so the veil just gets out of the way once that has happened.
+  addEventListener("pointerdown", () => veil.classList.add("gone"), { once: true });
+
+  const buttons = JSON.parse(api.instruments()).map((inst, i) => {
+    const b = document.createElement("button");
+    b.className = "inst";
+    b.innerHTML = `<span class="dot" style="background:${inst.color}"></span>${inst.name}<span class="key">${i + 1}</span>`;
+    b.onclick = () => { api.setInstrument(i); sync(); };
+    document.getElementById("insts").append(b);
+    return b;
+  });
+
+  bpm.oninput = () => { api.setBPM(+bpm.value); bpmVal.textContent = bpm.value; };
+  grid.onchange = () => api.setGrid(grid.checked);
+  document.getElementById("clear").onclick = () => api.clear();
+
+  // Polled rather than pushed from Go: the keyboard shortcuts still work, and
+  // this is the cheapest way to keep the panel showing what they did.
+  function sync() {
+    const s = JSON.parse(api.state());
+    buttons.forEach((b, i) => b.setAttribute("aria-pressed", i === s.cur));
+    if (document.activeElement !== bpm) { bpm.value = s.bpm; bpmVal.textContent = Math.round(s.bpm); }
+    grid.checked = s.grid;
+  }
+  sync();
+  setInterval(sync, 150);
+  ui.classList.add("ready");
+}
 </script>
 </body>
 </html>

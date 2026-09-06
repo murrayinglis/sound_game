@@ -23,9 +23,10 @@ func main() {
 	}
 	p.Play() // on wasm this stays silent until the first click; that's the browser
 
-	ebiten.SetWindowSize(W, H+pickerH)
-	ebiten.SetWindowTitle("sound game: draw, G grid, -/= tempo, C clear")
-	g := &Game{canvas: ebiten.NewImage(W, H), player: p, grid: gridDefault, sweep: sweepSec, start: time.Now()}
+	bridge()
+	ebiten.SetWindowSize(W, H)
+	ebiten.SetWindowTitle("sound game")
+	g := &Game{canvas: ebiten.NewImage(W, H), player: p, sweep: sweepSec, start: time.Now()}
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

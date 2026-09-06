@@ -1,28 +1,41 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
-
-// The picker lives in its own strip below the canvas rather than floating over
-// it, so there is no region where a click might mean either "draw" or "choose".
-const pickerH = 30
 
 // How far the background is dimmed so strokes stay readable over it. 0 shows the
 // gif untouched and makes the paler instruments hard to see; 255 hides it.
 const scrim = 40
 
-// Whether the grid starts visible. The wasm build turns it off in defaults_js.go.
-var gridDefault = true
+// UI state, kept out of Game because the page's controls reach it from the JS
+// event loop rather than from Ebiten's goroutine. Guarded by mu.
+var (
+	curInst  int
+	showGrid = true
+)
+
+func setInstrument(i int) {
+	if i < 0 || i >= len(cfg.Instruments) {
+		return
+	}
+	mu.Lock()
+	curInst = i
+	mu.Unlock()
+}
+
+func setGrid(on bool) {
+	mu.Lock()
+	showGrid = on
+	mu.Unlock()
+}
 
 // Listed rather than Key1+i: the Key constants are not promised to be contiguous.
 var pickKeys = []ebiten.Key{
@@ -33,10 +46,8 @@ var pickKeys = []ebiten.Key{
 type Game struct {
 	canvas       *ebiten.Image
 	player       *audio.Player
-	cur          int // selected instrument
 	lastX, lastY int
 	drawing      bool
-	grid         bool
 
 	// This pass's tempo and when it started, in playback seconds. The renderer
 	// walks its own pass boundary forward exactly as the synth does, so both
@@ -59,7 +70,9 @@ func (g *Game) Update() error {
 		mu.Unlock()
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyG) {
-		g.grid = !g.grid
+		mu.Lock()
+		showGrid = !showGrid
+		mu.Unlock()
 	}
 	if held(ebiten.KeyMinus) {
 		setBPM(bpm() - 5)
@@ -69,30 +82,26 @@ func (g *Game) Update() error {
 	}
 	for i := range min(len(cfg.Instruments), len(pickKeys)) {
 		if inpututil.IsKeyJustPressed(pickKeys[i]) {
-			g.cur = i
+			setInstrument(i)
 		}
 	}
 
-	x, y := ebiten.CursorPosition()
-	if y >= H { // in the picker strip
-		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-			if i := x * len(cfg.Instruments) / W; i >= 0 && i < len(cfg.Instruments) {
-				g.cur = i
-			}
-		}
+	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		g.drawing = false
 		return nil
 	}
-	if !ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+	x, y := ebiten.CursorPosition()
+	if x < 0 || x >= W || y < 0 || y >= H {
 		g.drawing = false
 		return nil
 	}
 
 	mu.Lock()
+	c := palette[curInst]
 	if g.drawing {
-		paintLine(g.lastX, g.lastY, x, y, palette[g.cur])
+		paintLine(g.lastX, g.lastY, x, y, c)
 	} else {
-		paint(x, y, palette[g.cur])
+		paint(x, y, c)
 	}
 	mu.Unlock()
 	g.lastX, g.lastY, g.drawing = x, y, true
@@ -119,12 +128,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// the pitch you hear still comes from the block. On a sloped stroke the two
 	// deliberately disagree, and the dot is showing the drawing, not the note.
 	n := findRuns(int(ph), &runs)
+	grid := showGrid
 	mu.Unlock()
 
 	screen.DrawImage(bgFrame(time.Since(g.start)), nil)
 	vector.FillRect(screen, 0, 0, float32(W), float32(H), color.RGBA{0, 0, 0, scrim}, false)
 	screen.DrawImage(g.canvas, nil)
-	if g.grid {
+	if grid {
 		g.drawGrid(screen, step)
 	}
 
@@ -135,8 +145,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		vector.FillCircle(screen, x, y, 5, color.RGBA{255, 255, 255, 255}, true)
 		vector.FillCircle(screen, x, y, 3.5, rgb(palette[runs[i].inst]), true)
 	}
-	g.drawPicker(screen)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%.0f bpm", bpm()), 4, 4)
 }
 
 // drawGrid marks the block boundaries, without which you can't tell where a
@@ -146,20 +154,7 @@ func (g *Game) drawGrid(screen *ebiten.Image, step int) {
 	vector.FillRect(screen, float32(step)*w, 0, w, float32(H), color.RGBA{255, 255, 255, 14}, false)
 	for i := 1; i < cfg.Steps; i++ {
 		x := float32(i) * w
-		vector.StrokeLine(screen, x, 0, x, float32(H), 1, color.RGBA{255, 255, 255, 26}, false)
-	}
-}
-
-func (g *Game) drawPicker(screen *ebiten.Image) {
-	w := float32(W) / float32(len(cfg.Instruments))
-	for i, in := range cfg.Instruments {
-		x := float32(i) * w
-		vector.FillRect(screen, x, float32(H), w, pickerH, rgb(palette[i]), false)
-		if i == g.cur {
-			// Selected: a white bar along the top edge of the swatch.
-			vector.FillRect(screen, x, float32(H), w, 4, color.RGBA{255, 255, 255, 255}, false)
-		}
-		ebitenutil.DebugPrintAt(screen, shortName(in.File), int(x)+8, H+12)
+		vector.StrokeLine(screen, x, 0, x, float32(H), 1, color.RGBA{255, 255, 255, 40}, false)
 	}
 }
 
@@ -174,4 +169,4 @@ func shortName(f string) string {
 	return s
 }
 
-func (g *Game) Layout(int, int) (int, int) { return W, H + pickerH }
+func (g *Game) Layout(int, int) (int, int) { return W, H }
