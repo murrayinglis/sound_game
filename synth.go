@@ -15,6 +15,17 @@ const (
 	ctrlSamples = 220
 	glide       = 0.0015
 	ampRate     = 0.0008
+
+	// Voice mix level, set so a full 8 voices soft-clip rather than blare.
+	drive = 0.35
+
+	// A damped feedback delay — cheap reverb, and the biggest single difference
+	// between "a tone" and "an instrument in a room". feedback is how long it
+	// rings, wet how much you hear it, damp how fast repeats lose their top end.
+	delayLen = sampleRate * 28 / 100
+	feedback = 0.42
+	wet      = 0.35
+	damp     = 0.35
 )
 
 // freqAt maps a row to a pitch exponentially, so equal vertical distances are
@@ -55,7 +66,11 @@ type voice struct{ phase, freq, amp, target, gain float64 }
 type synth struct {
 	voices [maxVoices]voice
 	acc    int
-	pos    float64 // local playhead, published to the renderer once per Read
+	pos    float64 // write cursor in columns; the renderer uses player.Position()
+
+	delay [delayLen]float64
+	dpos  int
+	lp    float64 // one-pole state damping the delay's feedback path
 }
 
 // The synth is the clock: driving the playhead from sample count keeps picture
@@ -79,15 +94,30 @@ func (s *synth) Read(buf []byte) (int, error) {
 			if p.amp < 1e-4 {
 				continue
 			}
-			p.phase += 2 * math.Pi * p.freq / sampleRate
-			if p.phase > 2*math.Pi {
-				p.phase -= 2 * math.Pi
+			// ponytail: phase is in turns, not radians, so it indexes the table
+			// directly. No band-limiting — safe for the waveforms shipped here,
+			// but a brighter table will alias near fMax. Oversample if you add one.
+			p.phase += p.freq / sampleRate
+			if p.phase >= 1 {
+				p.phase--
 			}
-			sum += math.Sin(p.phase) * p.amp
+			sum += wave(p.phase) * p.amp
 		}
 
 		// tanh instead of a mixer: soft-clips 8 voices without going quiet at 1.
-		v := int16(math.Tanh(sum*0.35) * 26000)
+		dry := math.Tanh(sum * drive)
+
+		echo := s.delay[s.dpos]
+		s.lp += (dry + echo*feedback - s.lp) * damp
+		s.delay[s.dpos] = s.lp
+		s.dpos++
+		if s.dpos == delayLen {
+			s.dpos = 0
+		}
+
+		// tanh again on the way out: the delay's feedback can push dry+echo well
+		// past full scale, and an int16 conversion that overflows is undefined.
+		v := int16(math.Tanh(dry+echo*wet) * 26000)
 		buf[i], buf[i+1] = byte(v), byte(v>>8)
 		buf[i+2], buf[i+3] = byte(v), byte(v>>8)
 

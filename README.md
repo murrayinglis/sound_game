@@ -26,6 +26,26 @@ shell. Audio stays silent until the first click — browsers require a gesture.
 - `main.go` — wiring
 - `canvas.go` — the pixel buffer and pencil
 - `synth.go` — reads the playhead column, turns strokes into voices
+- `wavetable.go` — loads the single-cycle waveform the oscillators read
 - `game.go` — input and rendering
 
 Tuning knobs live at the top of `canvas.go` and `synth.go`.
+
+## Sound
+
+Each voice reads a single-cycle waveform at a variable rate, so pitch is
+continuous — a drawn curve glissandos rather than stepping between notes.
+Change the instrument with `waveFile` in `wavetable.go`:
+
+| file | character |
+| --- | --- |
+| `AKWF_epiano_0001.wav` | warm, full — the default |
+| `AKWF_flute_0004.wav` | soft, close to a sine |
+| `AKWF_clarinett_0001.wav` | hollow, odd harmonics only |
+| `AKWF_hvoice_0001.wav` | vocal, strong 2nd harmonic, thin at the bottom |
+
+Waveforms are from [AKWF-FREE](https://github.com/KristofferKarlAxelEkstrand/AKWF-FREE)
+by Kristoffer Ekstrand, released into the public domain (CC0).
+
+There's no band-limiting, so a waveform with energy above the 8th harmonic will
+alias near the top of the canvas. The four above were picked to stay clean.
