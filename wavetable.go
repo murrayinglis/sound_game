@@ -12,7 +12,7 @@ import (
 // One period of a real instrument, so reading it at a variable rate gives
 // continuous pitch for free.
 
-//go:embed wave/*.wav
+//go:embed media/wave/*.wav
 var waves embed.FS
 
 // tables[i] is the waveform for instrument i. Loaded in main from the config.
@@ -20,7 +20,7 @@ var tables [][]float64
 
 func loadTables() {
 	for _, in := range cfg.Instruments {
-		tables = append(tables, loadTable("wave/"+in.File))
+		tables = append(tables, loadTable("media/wave/"+in.File))
 	}
 }
 
@@ -44,7 +44,7 @@ func wave(i int, phase float64) float64 {
 func loadTable(name string) []float64 {
 	b, err := waves.ReadFile(name)
 	if err != nil {
-		available, _ := fs.Glob(waves, "wave/*.wav")
+		available, _ := fs.Glob(waves, "media/wave/*.wav")
 		log.Fatalf("instrument %q not found; available: %v", name, available)
 	}
 	for i := 12; i+8 <= len(b); {

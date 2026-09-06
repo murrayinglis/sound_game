@@ -36,10 +36,12 @@
           transition: opacity .35s; cursor: crosshair; }
   #veil.gone { opacity: 0; pointer-events: none; }
 
+  /* max-height so a short window scrolls the panel rather than cutting it off */
   aside { position: fixed; top: 20px; right: 20px; z-index: 10; width: 228px;
+          max-height: calc(100vh - 40px); overflow-y: auto;
           background: var(--panel); backdrop-filter: blur(14px);
           border: 1px solid var(--line); border-radius: 12px; padding: 18px;
-          display: none; flex-direction: column; gap: 20px;
+          display: none; flex-direction: column; gap: 16px;
           box-shadow: 0 16px 44px rgba(0,0,0,.5); }
   aside.ready { display: flex; }
   h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .04em; }

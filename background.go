@@ -12,7 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-//go:embed frutiger.gif
+//go:embed media/frutiger.gif
 var gifData []byte
 
 var (
