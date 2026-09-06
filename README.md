@@ -26,9 +26,12 @@ Copy `config.example.json` to `config.json` and edit `bpm`, `steps`, `root`,
 ## Browser
 
 ```bash
-GOOS=js GOARCH=wasm go build -o main.wasm .
-cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
+GOOS=js GOARCH=wasm go build -o main.wasm . && cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" . && python3 -m http.server
 ```
+
+Pushing to `main` deploys the same build to GitHub Pages via
+`.github/workflows/pages.yml`. Set Settings → Pages → Source to **GitHub
+Actions** once, first.
 
 Serve over http. No config file — wasm uses the defaults in `config.go`. Audio
 starts on the first click.

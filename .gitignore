@@ -1,3 +1,7 @@
 .idea
 .claude/settings.local.json
 config.json
+dist/
+main.wasm
+wasm_exec.js
+.DS_Store

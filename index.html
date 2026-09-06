@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sound game</title>
+<style>
+  body { margin: 0; height: 100vh; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; gap: 12px;
+         background: #0f1117; color: #8b93a7;
+         font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #hint { transition: opacity .4s; }
+  body.started #hint { opacity: 0; }
+</style>
+</head>
+<body>
+<div id="hint">click to start audio &middot; drag to draw &middot; 1-4 instrument &middot; G grid &middot; -/= tempo &middot; C clear</div>
+<script src="wasm_exec.js"></script>
+<script>
+  // Browsers keep audio suspended until the user interacts; Ebiten resumes it on
+  // the first input, so the hint just fades once that has happened.
+  addEventListener("pointerdown", () => document.body.classList.add("started"), { once: true });
+
+  const go = new Go();
+  WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
+    .then(r => go.run(r.instance))
+    .catch(e => document.getElementById("hint").textContent = "failed to load: " + e);
+</script>
+</body>
+</html>
