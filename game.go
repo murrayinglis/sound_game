@@ -40,15 +40,24 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	mu.Lock()
-	g.canvas.WritePixels(pix)
-	mu.Unlock()
-	screen.DrawImage(g.canvas, nil)
-
 	// Position() is what is audible right now, not what the synth has already
 	// written into the buffer, so the line sits on the column you can hear.
-	ph := float32(math.Mod(g.player.Position().Seconds()/sweepSec, 1) * W)
-	vector.StrokeLine(screen, ph, 0, ph, H, 1, color.RGBA{255, 90, 90, 255}, false)
+	ph := math.Mod(g.player.Position().Seconds()/sweepSec, 1) * W
+
+	var runs [maxVoices]int
+	mu.Lock()
+	g.canvas.WritePixels(pix)
+	// The same detection the synth does, but at the audible column rather than
+	// the write cursor, so a dot marks exactly what you can hear right now.
+	n := findRuns(min(int(ph), W-1), &runs)
+	mu.Unlock()
+
+	screen.DrawImage(g.canvas, nil)
+	x := float32(ph)
+	vector.StrokeLine(screen, x, 0, x, H, 1, color.RGBA{255, 90, 90, 255}, false)
+	for i := range n {
+		vector.DrawFilledCircle(screen, x, float32(runs[i]), 4, color.RGBA{255, 220, 80, 255}, true)
+	}
 }
 
 func (g *Game) Layout(int, int) (int, int) { return W, H }

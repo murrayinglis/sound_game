@@ -15,7 +15,7 @@ var scale = []int{0, 3, 5, 7, 10} // minor pentatonic
 
 const (
 	root    = 110.0 // A2, the pitch at the bottom of the canvas
-	octaves = 4     // ...so the top is 1760Hz
+	octaves = 3     // ...so the top is 880Hz
 )
 
 // degreeAt converts a row to a fractional scale degree, 0 at the bottom.

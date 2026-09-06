@@ -7,7 +7,7 @@ import (
 
 const (
 	W, H  = 800, 400
-	brush = 2 // pencil radius in pixels
+	brush = 1 // pencil radius in pixels
 )
 
 var (
