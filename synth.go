@@ -4,21 +4,13 @@ import "math"
 
 const (
 	sampleRate = 44100
-	sweepSec   = 4.0 // time for the playhead to cross the canvas
 	maxVoices  = 8
 
-	// How much slope it takes to break free of the scale, in degrees per control
-	// tick. Lower and only near-vertical lines bend; higher and nothing ever
-	// lands in tune. This is the knob for how "fretted" the instrument feels.
-	snapWidth = 0.02
-
-	// Tuning knobs. ctrlSamples is how often the synth re-reads the canvas
-	// (~5ms); glide and ampRate are one-pole smoothing coefficients per sample.
-	// Raising glide makes pitch track the drawing more literally at the cost of
-	// zipper noise; lowering ampRate softens note onsets.
-	ctrlSamples = 220
-	glide       = 0.0015
-	ampRate     = 0.0008
+	// glide and ampRate are one-pole smoothing coefficients per sample. glide is
+	// how long a note takes to arrive at the next one's pitch — the audible slide
+	// between steps; ampRate is how softly notes come in and out.
+	glide   = 0.0015
+	ampRate = 0.0008
 
 	// Voice mix level, set so a full 8 voices soft-clip rather than blare.
 	drive = 0.35
@@ -65,15 +57,20 @@ func findRuns(col int, out *[maxVoices]hit) int {
 	return n
 }
 
+// stepCol is the column a step takes its notes from: the middle of the block,
+// so a stroke covering only part of it still counts.
+func stepCol(step int) int {
+	return min(int((float64(step)+0.5)*W/float64(cfg.Steps)), W-1)
+}
+
 type voice struct {
 	phase, freq, amp, target, gain float64
-	raw                            float64 // last unsnapped degree, for measuring slope
 	inst                           int
 }
 
 type synth struct {
 	voices [maxVoices]voice
-	acc    int
+	step   int     // index of the block currently sounding
 	pos    float64 // write cursor in columns; the renderer uses player.Position()
 
 	delay [delayLen]float64
@@ -85,14 +82,15 @@ type synth struct {
 // and sound locked together, which a 60fps Update would slowly drift away from.
 func (s *synth) Read(buf []byte) (int, error) {
 	n := len(buf) / 4 * 4
-	const step = W / (sweepSec * sampleRate)
+	rate := W / (sweepSec * sampleRate)
 
 	for i := 0; i < n; i += 4 {
-		if s.acc <= 0 {
+		// Notes change only on block boundaries, never mid-block. That is what
+		// stops a drawn slope from sliding continuously.
+		if st := int(s.pos * float64(cfg.Steps) / W); st != s.step {
+			s.step = st
 			s.control()
-			s.acc = ctrlSamples
 		}
-		s.acc--
 
 		sum := 0.0
 		for v := range s.voices {
@@ -129,7 +127,7 @@ func (s *synth) Read(buf []byte) (int, error) {
 		buf[i], buf[i+1] = byte(v), byte(v>>8)
 		buf[i+2], buf[i+3] = byte(v), byte(v>>8)
 
-		s.pos += step
+		s.pos += rate
 		if s.pos >= W {
 			s.pos -= W
 		}
@@ -140,7 +138,7 @@ func (s *synth) Read(buf []byte) (int, error) {
 func (s *synth) control() {
 	var runs [maxVoices]hit
 	mu.Lock()
-	n := findRuns(int(s.pos), &runs)
+	n := findRuns(stepCol(s.step), &runs)
 	mu.Unlock()
 
 	for i := range s.voices {
@@ -150,19 +148,11 @@ func (s *synth) control() {
 			continue
 		}
 
-		raw := degreeAt(float64(runs[i].y))
 		fresh := p.amp < 1e-3
 		p.inst = runs[i].inst
-
-		// Snap hard while the line is flat, let go as it steepens: a held note
-		// lands in tune, a slope bends between notes like a pitch wheel. The
-		// existing glide filter then smooths whatever steps are left.
-		w := 1.0
-		if !fresh {
-			w = math.Exp(-math.Abs(raw-p.raw) / snapWidth)
-		}
-		p.raw = raw
-		p.target = freqOfDegree(raw + (math.Round(raw)-raw)*w)
+		// Full snap: one block is one note, dead in tune. glide carries the pitch
+		// from the last block into this one, which is the audible slide.
+		p.target = freqOfDegree(math.Round(degreeAt(float64(runs[i].y))))
 
 		p.gain = 1
 		if fresh {

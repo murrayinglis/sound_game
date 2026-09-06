@@ -1,7 +1,9 @@
 {
+  "bpm": 100,
+  "steps": 16,
   "root": 110,
   "octaves": 3,
-  "scale": [0, 3, 5, 7, 10],
+  "scale": "minor_pentatonic",
   "instruments": [
     { "file": "AKWF_clarinett_0001.wav", "color": "#7ec8ff" },
     { "file": "AKWF_epiano_0001.wav", "color": "#ffd166" },

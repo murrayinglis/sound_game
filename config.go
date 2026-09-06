@@ -21,12 +21,17 @@ type Instrument struct {
 // the defaults below, and a missing file is not an error — that's the normal
 // case for the wasm build, which has no filesystem to read.
 type Config struct {
+	// Beats per minute. One beat is one block of the canvas.
+	BPM float64 `json:"bpm" validate:"gt=0,lte=300"`
+	// How many blocks the canvas is divided into left to right. Everything drawn
+	// inside a block sounds as one note, held for the whole beat.
+	Steps int `json:"steps" validate:"gte=1,lte=64"`
 	// Hz at the bottom of the canvas.
 	Root float64 `json:"root" validate:"gt=0"`
 	// How far above the root the top of the canvas reaches.
 	Octaves int `json:"octaves" validate:"gte=1,lte=8"`
-	// Semitone offsets from the root, one octave; the pattern repeats upward.
-	Scale []int `json:"scale" validate:"required,min=1,dive,gte=0,lte=48"`
+	// One of the names in scales; see scale.go.
+	Scale string `json:"scale" validate:"required,scalename"`
 	// What the picker offers, left to right. Capped at 8 so the strip stays legible.
 	// unique=Color matters: a repeated colour would silently play one
 	// instrument's strokes with another's waveform.
@@ -34,9 +39,11 @@ type Config struct {
 }
 
 var cfg = Config{
+	BPM:     100,
+	Steps:   16,
 	Root:    110, // A2
 	Octaves: 3,
-	Scale:   []int{0, 3, 5, 7, 10}, // minor pentatonic
+	Scale:   "minor_pentatonic",
 	Instruments: []Instrument{
 		{"AKWF_clarinett_0001.wav", "#7ec8ff"},
 		{"AKWF_epiano_0001.wav", "#ffd166"},
@@ -49,6 +56,12 @@ var validate = newValidator()
 
 func newValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
+	// Registered rather than a literal oneof= list, so the tag can't drift out of
+	// sync with the scales map.
+	v.RegisterValidation("scalename", func(fl validator.FieldLevel) bool {
+		_, ok := scales[fl.Field().String()]
+		return ok
+	})
 	// Root and Octaves are only wrong in combination, so this one is struct-level:
 	// a range topping out above Nyquist folds back down the spectrum as aliasing.
 	v.RegisterStructValidation(func(sl validator.StructLevel) {
@@ -60,20 +73,24 @@ func newValidator() *validator.Validate {
 	return v
 }
 
+// sweepSec is how long the playhead takes to cross the canvas, derived from the
+// tempo rather than set directly: one block is one beat.
+var sweepSec float64
+
 func loadConfig(path string) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		log.Printf("config: using defaults (%v)", err)
-		return
-	}
 	// Unmarshalling over the populated struct means the file only has to carry
-	// what it wants to change.
-	if err := json.Unmarshal(b, &cfg); err != nil {
+	// what it wants to change. A missing file is fine — that's the wasm build,
+	// which has no filesystem, running on the defaults above.
+	if b, err := os.ReadFile(path); err != nil {
+		log.Printf("config: using defaults (%v)", err)
+	} else if err := json.Unmarshal(b, &cfg); err != nil {
 		log.Fatalf("config: %s is not valid JSON: %v", path, err)
+	} else if err := validate.Struct(cfg); err != nil {
+		log.Fatalf("config: %v\nscale must be one of: %v", err, scaleNames())
 	}
-	if err := validate.Struct(cfg); err != nil {
-		log.Fatalf("config: %v", err)
-	}
-	log.Printf("config: root %.0fHz, %d octaves, scale %v, %d instruments",
-		cfg.Root, cfg.Octaves, cfg.Scale, len(cfg.Instruments))
+
+	notes = scales[cfg.Scale]
+	sweepSec = float64(cfg.Steps) * 60 / cfg.BPM
+	log.Printf("config: %.0f bpm, %d steps (%.1fs a pass), %s from %.0fHz over %d octaves",
+		cfg.BPM, cfg.Steps, sweepSec, cfg.Scale, cfg.Root, cfg.Octaves)
 }

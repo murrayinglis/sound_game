@@ -73,23 +73,38 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// written into the buffer, so the line sits on the column you can hear.
 	ph := math.Mod(g.player.Position().Seconds()/sweepSec, 1) * W
 
+	step := min(int(ph*float64(cfg.Steps)/W), cfg.Steps-1)
+
 	var runs [maxVoices]hit
 	mu.Lock()
 	g.canvas.WritePixels(pix)
-	// The same detection the synth does, but at the audible column rather than
-	// the write cursor, so a dot marks exactly what you can hear right now.
-	n := findRuns(min(int(ph), W-1), &runs)
+	// The same column the synth sampled for this block, so the dots sit on the
+	// pixels you can actually hear rather than wherever the playhead has got to.
+	n := findRuns(stepCol(step), &runs)
 	mu.Unlock()
 
 	screen.DrawImage(g.canvas, nil)
-	x := float32(ph)
-	vector.StrokeLine(screen, x, 0, x, H, 1, color.RGBA{255, 90, 90, 255}, false)
+	g.drawGrid(screen, step)
+
+	vector.StrokeLine(screen, float32(ph), 0, float32(ph), H, 1, color.RGBA{255, 90, 90, 255}, false)
+	x := float32(stepCol(step))
 	for i := range n {
 		y := float32(runs[i].y)
 		vector.FillCircle(screen, x, y, 5, color.RGBA{255, 255, 255, 255}, true)
 		vector.FillCircle(screen, x, y, 3.5, rgb(palette[runs[i].inst]), true)
 	}
 	g.drawPicker(screen)
+}
+
+// drawGrid marks the block boundaries — without them you can't tell where a
+// note will start — and shades the block currently sounding.
+func (g *Game) drawGrid(screen *ebiten.Image, step int) {
+	w := float32(W) / float32(cfg.Steps)
+	vector.FillRect(screen, float32(step)*w, 0, w, H, color.RGBA{255, 255, 255, 14}, false)
+	for i := 1; i < cfg.Steps; i++ {
+		x := float32(i) * w
+		vector.StrokeLine(screen, x, 0, x, H, 1, color.RGBA{255, 255, 255, 26}, false)
+	}
 }
 
 func (g *Game) drawPicker(screen *ebiten.Image) {
