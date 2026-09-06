@@ -26,6 +26,7 @@ func bridge() {
 			}
 			return marshal(list)
 		}),
+		"scales": fn(func([]js.Value) any { return marshal(scaleNames()) }),
 		"state": fn(func([]js.Value) any {
 			mu.Lock()
 			defer mu.Unlock()
@@ -33,6 +34,7 @@ func bridge() {
 				"cur":    curInst,
 				"grid":   showGrid,
 				"paused": paused,
+				"scale":  cfg.Scale,
 				// Inlined rather than calling bpm(), which would deadlock on mu.
 				"bpm": float64(cfg.Steps) * 60 / sweepSec,
 			})
@@ -41,6 +43,7 @@ func bridge() {
 		"setBPM":        fn(func(a []js.Value) any { setBPM(a[0].Float()); return nil }),
 		"setGrid":       fn(func(a []js.Value) any { setGrid(a[0].Bool()); return nil }),
 		"setPaused":     fn(func(a []js.Value) any { setPaused(a[0].Bool()); return nil }),
+		"setScale":      fn(func(a []js.Value) any { setScale(a[0].String()); return nil }),
 		"clear": fn(func([]js.Value) any {
 			mu.Lock()
 			clearCanvas()

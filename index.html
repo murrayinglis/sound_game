@@ -51,6 +51,11 @@
 
   input[type=range] { width: 100%; accent-color: var(--accent); }
 
+  select { width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+           border-radius: 8px; background: #1a2030; color: var(--text);
+           font: inherit; cursor: pointer; appearance: none; }
+  select:hover { background: #222a3d; }
+
   .row { display: flex; gap: 8px; }
   button.act, label.tog { flex: 1; display: flex; align-items: center; justify-content: center;
           gap: 7px; padding: 9px; border: 1px solid var(--line); border-radius: 8px;
@@ -73,6 +78,11 @@
   <section>
     <h2>Instrument</h2>
     <div id="insts"></div>
+  </section>
+
+  <section>
+    <h2>Scale</h2>
+    <select id="scale"></select>
   </section>
 
   <section>
@@ -120,6 +130,7 @@ function start(api) {
   const bpmVal = document.getElementById("bpmVal");
   const grid = document.getElementById("grid");
   const pause = document.getElementById("pause");
+  const scale = document.getElementById("scale");
 
   // The panel sits over the canvas and Ebiten listens on the document, so
   // without this a click on a button also paints underneath it.
@@ -140,6 +151,14 @@ function start(api) {
     return b;
   });
 
+  for (const name of JSON.parse(api.scales())) {
+    const o = document.createElement("option");
+    o.value = name;
+    o.textContent = name.replace(/_/g, " ");
+    scale.append(o);
+  }
+  scale.onchange = () => { api.setScale(scale.value); scale.blur(); };
+
   bpm.oninput = () => { api.setBPM(+bpm.value); bpmVal.textContent = bpm.value; };
   grid.onchange = () => api.setGrid(grid.checked);
   // blur so the button does not swallow the next space keypress as a click
@@ -153,6 +172,7 @@ function start(api) {
     buttons.forEach((b, i) => b.setAttribute("aria-pressed", i === s.cur));
     if (document.activeElement !== bpm) { bpm.value = s.bpm; bpmVal.textContent = Math.round(s.bpm); }
     grid.checked = s.grid;
+    if (document.activeElement !== scale) scale.value = s.scale;
     pause.dataset.on = s.paused ? "1" : "0";
     pause.textContent = s.paused ? "Resume" : "Pause";
   }

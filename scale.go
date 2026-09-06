@@ -28,6 +28,18 @@ func scaleNames() []string { return slices.Sorted(maps.Keys(scales)) }
 // that two strokes sounding together clash.
 var notes []int
 
+// setScale swaps the scale by name, ignoring one it does not know. Notes already
+// sounding keep their pitch until the next block picks new ones.
+func setScale(name string) {
+	n, ok := scales[name]
+	if !ok {
+		return
+	}
+	mu.Lock()
+	cfg.Scale, notes = name, n
+	mu.Unlock()
+}
+
 // degreeAt converts a row to a fractional scale degree, 0 at the bottom.
 func degreeAt(y float64) float64 {
 	return (1 - y/float64(H)) * float64(len(notes)*cfg.Octaves)

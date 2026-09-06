@@ -140,9 +140,11 @@ func (s *synth) Read(buf []byte) (int, error) {
 
 func (s *synth) control() {
 	var runs [maxVoices]hit
+	// Held across the pitch maths as well as the scan: the page can swap the
+	// scale out from under this between one block and the next.
 	mu.Lock()
+	defer mu.Unlock()
 	n := findRuns(stepCol(s.step), &runs)
-	mu.Unlock()
 
 	for i := range s.voices {
 		p := &s.voices[i]
