@@ -75,7 +75,28 @@ func newValidator() *validator.Validate {
 
 // sweepSec is how long the playhead takes to cross the canvas, derived from the
 // tempo rather than set directly: one block is one beat.
+//
+// It is the *pending* tempo. Changing it mid-pass would stretch the pass already
+// underway and slide the playhead out from under the sound, so the synth and the
+// renderer each take a copy at their own wrap point instead. Guarded by mu
+// because the audio goroutine reads it.
 var sweepSec float64
+
+func tempo() float64 {
+	mu.Lock()
+	defer mu.Unlock()
+	return sweepSec
+}
+
+func bpm() float64 { return float64(cfg.Steps) * 60 / tempo() }
+
+// setBPM takes effect when the playhead next wraps, not immediately.
+func setBPM(b float64) {
+	b = min(max(b, 20), 300)
+	mu.Lock()
+	sweepSec = float64(cfg.Steps) * 60 / b
+	mu.Unlock()
+}
 
 func loadConfig(path string) {
 	// Unmarshalling over the populated struct means the file only has to carry

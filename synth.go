@@ -71,6 +71,7 @@ type voice struct {
 type synth struct {
 	voices [maxVoices]voice
 	step   int     // index of the block currently sounding
+	sweep  float64 // this pass's tempo; a new one is picked up at the wrap
 	pos    float64 // write cursor in columns; the renderer uses player.Position()
 
 	delay [delayLen]float64
@@ -82,7 +83,7 @@ type synth struct {
 // and sound locked together, which a 60fps Update would slowly drift away from.
 func (s *synth) Read(buf []byte) (int, error) {
 	n := len(buf) / 4 * 4
-	rate := W / (sweepSec * sampleRate)
+	rate := W / (s.sweep * sampleRate)
 
 	for i := 0; i < n; i += 4 {
 		// Notes change only on block boundaries, never mid-block. That is what
@@ -130,6 +131,8 @@ func (s *synth) Read(buf []byte) (int, error) {
 		s.pos += rate
 		if s.pos >= W {
 			s.pos -= W
+			s.sweep = tempo() // a tempo change waits for the wrap
+			rate = W / (s.sweep * sampleRate)
 		}
 	}
 	return n, nil

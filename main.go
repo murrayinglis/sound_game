@@ -15,15 +15,16 @@ func main() {
 	loadTables()
 	clearCanvas()
 
-	p, err := audio.NewContext(sampleRate).NewPlayer(&synth{})
+	p, err := audio.NewContext(sampleRate).NewPlayer(&synth{sweep: sweepSec})
 	if err != nil {
 		log.Fatal(err)
 	}
 	p.Play() // on wasm this stays silent until the first click; that's the browser
 
-	ebiten.SetWindowSize(W, H)
-	ebiten.SetWindowTitle("sound game: draw, C to clear")
-	if err := ebiten.RunGame(&Game{canvas: ebiten.NewImage(W, H), player: p}); err != nil {
+	ebiten.SetWindowSize(W, H+pickerH)
+	ebiten.SetWindowTitle("sound game: draw, G grid, -/= tempo, C clear")
+	g := &Game{canvas: ebiten.NewImage(W, H), player: p, grid: true, sweep: sweepSec}
+	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
 }

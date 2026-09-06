@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
-	"math"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -28,6 +28,19 @@ type Game struct {
 	cur          int // selected instrument
 	lastX, lastY int
 	drawing      bool
+	grid         bool
+
+	// This pass's tempo and when it started, in playback seconds. The renderer
+	// walks its own pass boundary forward exactly as the synth does, so both
+	// adopt a new tempo at the same point in the music despite the buffer lag.
+	sweep, startSec float64
+}
+
+// held reports a press and then repeats while the key stays down, so the tempo
+// can be swept by holding rather than tapping.
+func held(k ebiten.Key) bool {
+	d := inpututil.KeyPressDuration(k)
+	return d == 1 || (d > 30 && d%4 == 0)
 }
 
 func (g *Game) Update() error {
@@ -35,6 +48,15 @@ func (g *Game) Update() error {
 		mu.Lock()
 		clearCanvas()
 		mu.Unlock()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyG) {
+		g.grid = !g.grid
+	}
+	if held(ebiten.KeyMinus) {
+		setBPM(bpm() - 5)
+	}
+	if held(ebiten.KeyEqual) {
+		setBPM(bpm() + 5)
 	}
 	for i := range min(len(cfg.Instruments), len(pickKeys)) {
 		if inpututil.IsKeyJustPressed(pickKeys[i]) {
@@ -71,7 +93,12 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	// Position() is what is audible right now, not what the synth has already
 	// written into the buffer, so the line sits on the column you can hear.
-	ph := math.Mod(g.player.Position().Seconds()/sweepSec, 1) * W
+	t := g.player.Position().Seconds()
+	for t-g.startSec >= g.sweep {
+		g.startSec += g.sweep
+		g.sweep = tempo()
+	}
+	ph := min((t-g.startSec)/g.sweep*W, W-1)
 
 	step := min(int(ph*float64(cfg.Steps)/W), cfg.Steps-1)
 
@@ -84,7 +111,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	mu.Unlock()
 
 	screen.DrawImage(g.canvas, nil)
-	g.drawGrid(screen, step)
+	if g.grid {
+		g.drawGrid(screen, step)
+	}
 
 	vector.StrokeLine(screen, float32(ph), 0, float32(ph), H, 1, color.RGBA{255, 90, 90, 255}, false)
 	x := float32(stepCol(step))
@@ -94,6 +123,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		vector.FillCircle(screen, x, y, 3.5, rgb(palette[runs[i].inst]), true)
 	}
 	g.drawPicker(screen)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%.0f bpm", bpm()), 4, 4)
 }
 
 // drawGrid marks the block boundaries — without them you can't tell where a

@@ -11,13 +11,20 @@ go run .
 
 - Left mouse draws
 - `1`–`8` or the strip along the bottom picks an instrument
+- `G` toggles the block grid
+- `-` / `=` change the tempo, applied when the playhead next wraps
 - `C` clears
 
 ## Config
 
-Copy `config.example.json` to `config.json` and edit `root`, `octaves`,
-`scale`, `instruments`. Two instruments can't share a colour; the colour of a
-stroke is how the synth knows what to play it with.
+Copy `config.example.json` to `config.json` and edit `bpm`, `steps`, `root`,
+`octaves`, `scale`, `instruments`.
+
+`scale` is a name — `major`, `minor`, `harmonic_minor`, `dorian`,
+`major_pentatonic`, `minor_pentatonic`, `blues`, `whole_tone`, `chromatic`.
+
+Two instruments can't share a colour; the colour of a stroke is how the synth
+knows what to play it with.
 
 ## Browser
 
