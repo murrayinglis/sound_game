@@ -38,9 +38,9 @@ func wave(i int, phase float64) float64 {
 	return t[n]*(1-f) + t[j]*f
 }
 
-// loadTable walks the RIFF chunks for the sample data, rather than assuming a
-// 44-byte header, because AKWF files carry extra chunks. Normalising to peak 1.0 means
-// drive stays meaningful across instruments of different recorded levels.
+// loadTable walks the RIFF chunks for the sample data rather than assuming a
+// 44-byte header, because AKWF files carry extra chunks. Normalising to peak
+// 1.0 keeps drive meaningful across instruments of different recorded levels.
 func loadTable(name string) []float64 {
 	b, err := waves.ReadFile(name)
 	if err != nil {

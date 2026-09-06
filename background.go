@@ -26,8 +26,8 @@ var (
 // that changed, so each one has to be painted over the ones before it.
 //
 // ponytail: handles the two disposal methods that appear in practice, leaving
-// the frame in place or clearing its rect afterwards. DisposalPrevious would need the
-// canvas snapshotted before each frame; add that if a background ever needs it.
+// the frame in place or clearing its rect afterwards. DisposalPrevious would
+// need the canvas snapshotted before each frame; add it if one ever needs it.
 func loadBackground() {
 	g, err := gif.DecodeAll(bytes.NewReader(gifData))
 	if err != nil {

@@ -21,6 +21,9 @@ const pickerH = 30
 // gif untouched and makes the paler instruments hard to see; 255 hides it.
 const scrim = 40
 
+// Whether the grid starts visible. The wasm build turns it off in defaults_js.go.
+var gridDefault = true
+
 // Listed rather than Key1+i: the Key constants are not promised to be contiguous.
 var pickKeys = []ebiten.Key{
 	ebiten.Key1, ebiten.Key2, ebiten.Key3, ebiten.Key4,

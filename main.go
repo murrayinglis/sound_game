@@ -25,7 +25,7 @@ func main() {
 
 	ebiten.SetWindowSize(W, H+pickerH)
 	ebiten.SetWindowTitle("sound game: draw, G grid, -/= tempo, C clear")
-	g := &Game{canvas: ebiten.NewImage(W, H), player: p, grid: true, sweep: sweepSec, start: time.Now()}
+	g := &Game{canvas: ebiten.NewImage(W, H), player: p, grid: gridDefault, sweep: sweepSec, start: time.Now()}
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
