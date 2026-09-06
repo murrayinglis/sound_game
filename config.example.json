@@ -1,0 +1,6 @@
+{
+  "root": 110,
+  "octaves": 3,
+  "scale": [0, 3, 5, 7, 10],
+  "instrument": "AKWF_clarinett_0001.wav"
+}

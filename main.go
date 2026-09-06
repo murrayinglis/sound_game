@@ -10,6 +10,8 @@ import (
 )
 
 func main() {
+	loadConfig("config.json")
+	table = loadTable("wave/" + cfg.Instrument)
 	clearCanvas()
 
 	p, err := audio.NewContext(sampleRate).NewPlayer(&synth{})

@@ -3,20 +3,20 @@ package main
 import (
 	"embed"
 	"encoding/binary"
+	"io/fs"
+	"log"
 	"math"
 )
 
 // Single-cycle waveforms from the AKWF collection (public domain, CC0).
 // One period of a real instrument, so reading it at a variable rate gives
-// continuous pitch for free — exactly what the phase accumulator already does.
-// Swap the filename to change the instrument; see README for what's here.
-//
+// continuous pitch for free.
+
 //go:embed wave/*.wav
 var waves embed.FS
 
-const waveFile = "wave/AKWF_clarinett_0001.wav"
-
-var table = loadTable(waveFile)
+// Loaded in main once the config names an instrument.
+var table []float64
 
 // wave reads the table at a fractional position. The interpolation is not
 // optional: nearest-sample lookup on a 600-point table is audibly gritty.
@@ -37,7 +37,8 @@ func wave(phase float64) float64 {
 func loadTable(name string) []float64 {
 	b, err := waves.ReadFile(name)
 	if err != nil {
-		panic(err)
+		available, _ := fs.Glob(waves, "wave/*.wav")
+		log.Fatalf("instrument %q not found; available: %v", name, available)
 	}
 	for i := 12; i+8 <= len(b); {
 		size := int(binary.LittleEndian.Uint32(b[i+4 : i+8]))
