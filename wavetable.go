@@ -15,25 +15,32 @@ import (
 //go:embed wave/*.wav
 var waves embed.FS
 
-// Loaded in main once the config names an instrument.
-var table []float64
+// tables[i] is the waveform for instrument i. Loaded in main from the config.
+var tables [][]float64
 
-// wave reads the table at a fractional position. The interpolation is not
-// optional: nearest-sample lookup on a 600-point table is audibly gritty.
-func wave(phase float64) float64 {
-	x := phase * float64(len(table))
-	i := int(x)
-	j := i + 1
-	if j == len(table) {
+func loadTables() {
+	for _, in := range cfg.Instruments {
+		tables = append(tables, loadTable("wave/"+in.File))
+	}
+}
+
+// wave reads instrument i's table at a fractional position. The interpolation is
+// not optional: nearest-sample lookup on a 600-point table is audibly gritty.
+func wave(i int, phase float64) float64 {
+	t := tables[i]
+	x := phase * float64(len(t))
+	n := int(x)
+	j := n + 1
+	if j == len(t) {
 		j = 0
 	}
-	f := x - float64(i)
-	return table[i]*(1-f) + table[j]*f
+	f := x - float64(n)
+	return t[n]*(1-f) + t[j]*f
 }
 
 // loadTable walks the RIFF chunks for the sample data, rather than assuming a
 // 44-byte header — AKWF files carry extra chunks. Normalising to peak 1.0 means
-// drive stays meaningful when you swap in a louder or quieter waveform.
+// drive stays meaningful across instruments of different recorded levels.
 func loadTable(name string) []float64 {
 	b, err := waves.ReadFile(name)
 	if err != nil {
@@ -56,5 +63,6 @@ func loadTable(name string) []float64 {
 		}
 		i += 8 + size + size%2
 	}
-	panic("no data chunk in " + name)
+	log.Fatalf("no data chunk in %s", name)
+	return nil
 }

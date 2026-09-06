@@ -9,7 +9,32 @@ Y is pitch (exponential, 80Hz–2kHz), X is time.
 go run .
 ```
 
-Left mouse draws. `C` clears.
+Left mouse draws. `C` clears. Click the strip along the bottom, or press `1`–`8`,
+to pick an instrument — each draws in its own colour, and strokes keep playing
+with the instrument that drew them, so one canvas can hold several at once.
+
+## Config
+
+Copy `config.example.json` to `config.json` (gitignored) and edit:
+
+| key | meaning |
+| --- | --- |
+| `root` | Hz at the bottom of the canvas |
+| `octaves` | how far above the root the top reaches |
+| `scale` | semitone offsets from the root, repeated each octave |
+| `instruments` | what the picker offers, each a waveform plus a hex colour |
+
+Scales worth trying: `[0,3,5,7,10]` minor pentatonic (the default — nothing
+clashes, so any scribble works), `[0,2,4,7,9]` major pentatonic,
+`[0,2,3,5,7,8,10]` natural minor, `[0,2,4,5,7,9,11]` major.
+
+Two instruments must not share a colour: the colour of a pixel is how the synth
+knows which waveform to play it with. The config is validated at startup, so a
+duplicate colour or a range reaching past the Nyquist limit fails with a message
+rather than sounding wrong.
+
+There's no config in the browser build — wasm has no filesystem, so it runs on
+the defaults compiled into `config.go`.
 
 ## Build for the browser
 

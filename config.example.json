@@ -2,5 +2,10 @@
   "root": 110,
   "octaves": 3,
   "scale": [0, 3, 5, 7, 10],
-  "instrument": "AKWF_clarinett_0001.wav"
+  "instruments": [
+    { "file": "AKWF_clarinett_0001.wav", "color": "#7ec8ff" },
+    { "file": "AKWF_epiano_0001.wav", "color": "#ffd166" },
+    { "file": "AKWF_flute_0004.wav", "color": "#8ce99a" },
+    { "file": "AKWF_hvoice_0001.wav", "color": "#ff8fab" }
+  ]
 }

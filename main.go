@@ -11,7 +11,8 @@ import (
 
 func main() {
 	loadConfig("config.json")
-	table = loadTable("wave/" + cfg.Instrument)
+	loadPalette()
+	loadTables()
 	clearCanvas()
 
 	p, err := audio.NewContext(sampleRate).NewPlayer(&synth{})

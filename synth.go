@@ -32,19 +32,25 @@ const (
 	damp     = 0.35
 )
 
+// hit is one sounding stroke: the row to pitch it from, and which instrument
+// drew it.
+type hit struct{ y, inst int }
+
 // findRuns returns the centre row of each contiguous vertical stroke in a
 // column, one voice per run. Caller holds mu.
 // ponytail: voices are assigned to runs top-to-bottom, so crossing strokes swap
 // voices mid-glide. Match by nearest previous centre if that ever sounds wrong.
-func findRuns(col int, out *[maxVoices]int) int {
-	n, start := 0, -1
+// ponytail: a run of two overlapping colours takes the instrument of its topmost
+// pixel; splitting it in two would need a second voice per crossing.
+func findRuns(col int, out *[maxVoices]hit) int {
+	n, start, inst := 0, -1, 0
 	for y := range H {
-		on := pix[(y*W+col)*4] > 128
+		k := instAt(col, y)
 		switch {
-		case on && start < 0:
-			start = y
-		case !on && start >= 0:
-			out[n] = (start + y - 1) / 2
+		case k >= 0 && start < 0:
+			start, inst = y, k
+		case k < 0 && start >= 0:
+			out[n] = hit{(start + y - 1) / 2, inst}
 			n++
 			start = -1
 			if n == maxVoices {
@@ -53,7 +59,7 @@ func findRuns(col int, out *[maxVoices]int) int {
 		}
 	}
 	if start >= 0 {
-		out[n] = (start + H - 1) / 2
+		out[n] = hit{(start + H - 1) / 2, inst}
 		n++
 	}
 	return n
@@ -62,6 +68,7 @@ func findRuns(col int, out *[maxVoices]int) int {
 type voice struct {
 	phase, freq, amp, target, gain float64
 	raw                            float64 // last unsnapped degree, for measuring slope
+	inst                           int
 }
 
 type synth struct {
@@ -102,7 +109,7 @@ func (s *synth) Read(buf []byte) (int, error) {
 			if p.phase >= 1 {
 				p.phase--
 			}
-			sum += wave(p.phase) * p.amp
+			sum += wave(p.inst, p.phase) * p.amp
 		}
 
 		// tanh instead of a mixer: soft-clips 8 voices without going quiet at 1.
@@ -131,7 +138,7 @@ func (s *synth) Read(buf []byte) (int, error) {
 }
 
 func (s *synth) control() {
-	var runs [maxVoices]int
+	var runs [maxVoices]hit
 	mu.Lock()
 	n := findRuns(int(s.pos), &runs)
 	mu.Unlock()
@@ -143,8 +150,9 @@ func (s *synth) control() {
 			continue
 		}
 
-		raw := degreeAt(float64(runs[i]))
+		raw := degreeAt(float64(runs[i].y))
 		fresh := p.amp < 1e-3
+		p.inst = runs[i].inst
 
 		// Snap hard while the line is flat, let go as it steepens: a held note
 		// lands in tune, a slope bends between notes like a pitch wheel. The
