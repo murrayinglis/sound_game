@@ -14,7 +14,7 @@ import (
 //go:embed wave/*.wav
 var waves embed.FS
 
-const waveFile = "wave/AKWF_epiano_0001.wav"
+const waveFile = "wave/AKWF_clarinett_0001.wav"
 
 var table = loadTable(waveFile)
 

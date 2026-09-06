@@ -6,7 +6,11 @@ const (
 	sampleRate = 44100
 	sweepSec   = 4.0 // time for the playhead to cross the canvas
 	maxVoices  = 8
-	fMin, fMax = 80.0, 2000.0
+
+	// How much slope it takes to break free of the scale, in degrees per control
+	// tick. Lower and only near-vertical lines bend; higher and nothing ever
+	// lands in tune. This is the knob for how "fretted" the instrument feels.
+	snapWidth = 0.02
 
 	// Tuning knobs. ctrlSamples is how often the synth re-reads the canvas
 	// (~5ms); glide and ampRate are one-pole smoothing coefficients per sample.
@@ -27,12 +31,6 @@ const (
 	wet      = 0.35
 	damp     = 0.35
 )
-
-// freqAt maps a row to a pitch exponentially, so equal vertical distances are
-// equal musical intervals. Deliberately unquantized: a curve should glissando.
-func freqAt(y int) float64 {
-	return fMin * math.Pow(fMax/fMin, 1-float64(y)/H)
-}
 
 // findRuns returns the centre row of each contiguous vertical stroke in a
 // column, one voice per run. Caller holds mu.
@@ -61,7 +59,10 @@ func findRuns(col int, out *[maxVoices]int) int {
 	return n
 }
 
-type voice struct{ phase, freq, amp, target, gain float64 }
+type voice struct {
+	phase, freq, amp, target, gain float64
+	raw                            float64 // last unsnapped degree, for measuring slope
+}
 
 type synth struct {
 	voices [maxVoices]voice
@@ -96,7 +97,7 @@ func (s *synth) Read(buf []byte) (int, error) {
 			}
 			// ponytail: phase is in turns, not radians, so it indexes the table
 			// directly. No band-limiting — safe for the waveforms shipped here,
-			// but a brighter table will alias near fMax. Oversample if you add one.
+			// but a brighter table will alias near the top of the range.
 			p.phase += p.freq / sampleRate
 			if p.phase >= 1 {
 				p.phase--
@@ -137,14 +138,27 @@ func (s *synth) control() {
 
 	for i := range s.voices {
 		p := &s.voices[i]
-		if i < n {
-			p.target = freqAt(runs[i])
-			p.gain = 1
-			if p.amp < 1e-3 {
-				p.freq = p.target // fresh voice: don't glide up from a stale pitch
-			}
-		} else {
+		if i >= n {
 			p.gain = 0
+			continue
+		}
+
+		raw := degreeAt(float64(runs[i]))
+		fresh := p.amp < 1e-3
+
+		// Snap hard while the line is flat, let go as it steepens: a held note
+		// lands in tune, a slope bends between notes like a pitch wheel. The
+		// existing glide filter then smooths whatever steps are left.
+		w := 1.0
+		if !fresh {
+			w = math.Exp(-math.Abs(raw-p.raw) / snapWidth)
+		}
+		p.raw = raw
+		p.target = freqOfDegree(raw + (math.Round(raw)-raw)*w)
+
+		p.gain = 1
+		if fresh {
+			p.freq = p.target // don't glide up from a stale pitch
 		}
 	}
 }
