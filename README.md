@@ -20,15 +20,16 @@ is the way to run it. `make native` still works but has only the keyboard.
 
 ## Config
 
-Copy `config.example.json` to `config.json` and edit `bpm`, `steps`, `root`,
-`octaves`, `scale`, `instruments`.
+`config.default.json` is committed and embedded in the binary. It is what the
+deployed build runs on, so edit it to change what visitors get.
 
+To change settings locally without touching the deploy, copy it to
+`config.json`, which is gitignored and overrides it field by field. wasm has no
+filesystem, so the browser only ever sees the embedded copy.
+
+Keys: `bpm`, `steps`, `grid`, `root`, `octaves`, `scale`, `instruments`.
 `scale` is a name in `major`, `minor`, `harmonic_minor`, `dorian`,
 `major_pentatonic`, `minor_pentatonic`, `blues`, `whole_tone`, `chromatic`.
-
-There is no config file in the browser, since wasm has no filesystem to read
-one from. The deployed build runs on the defaults in `config.go`, with the
-starting tempo and grid set in `defaults_js.go`.
 
 
 ---

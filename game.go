@@ -19,7 +19,7 @@ const scrim = 40
 // event loop rather than from Ebiten's goroutine. Guarded by mu.
 var (
 	curInst  int
-	showGrid = true
+	showGrid bool // set from the config at startup
 )
 
 func setInstrument(i int) {
