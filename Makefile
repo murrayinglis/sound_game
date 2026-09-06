@@ -12,6 +12,7 @@ build:
 	GOOS=js GOARCH=wasm go build -o dist/main.wasm .
 	# -f so an existing read-only copy gets replaced rather than refused
 	cp -f "$(GOROOT)/lib/wasm/wasm_exec.js" dist/
+	cp -f frutiger.gif dist/
 	# Stamp the wasm's checksum into its URL. Without this a browser will happily
 	# pair a fresh index.html with a main.wasm cached from an earlier deploy, and
 	# the page then calls bridge functions the old binary never exported.

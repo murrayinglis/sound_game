@@ -19,6 +19,13 @@
     margin: 0; overflow: hidden; background: var(--bg); color: var(--text);
     font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   }
+  /* The world is square but the window is not, so Ebiten letterboxes it. This
+     fills the bars with a blown-up blur of the same gif instead of flat black. */
+  body::before {
+    content: ""; position: fixed; inset: -60px; z-index: -1;
+    background: url(frutiger.gif) center / cover no-repeat;
+    filter: blur(48px) saturate(1.15) brightness(.5);
+  }
   /* Ebiten owns the canvas and sizes it to the window, scaling the world to fit.
      Nothing here reparents or resizes it: doing either throws off where clicks
      land, because Ebiten maps the pointer using the size it thinks it set. */
